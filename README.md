@@ -1,5 +1,6 @@
 # Drais
 A chess engine written in Haskell
+
 A basic chess engine written in Haskell, using few external libraries or fancy features. As far as I know, Drais is the most complete chess engine written in Haskell thus far.
 
 Drais employs an iterative-deepening approach, repeatedly calling an internal search routine with successively higher levels of depth, and retaining in each case a principal variation. This search routine itself performs the "NegaScout" or "PVS" variant of Alpha-Beta pruning upon each call, using a move ordering informed by the recent principal variation as well as by heuristic considerations.
