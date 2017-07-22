@@ -11,7 +11,7 @@ The engine is a bit slow and rudimentary, but chugs along; an 8-depth search in 
 
 I've also written a JavaScript GUI. I've compiled Drais into JavaScript using Haste; I'd like to thank them for their work. A live version of the applet is available at http://www.math.jhu.edu/~bdiamond/chess/chess.html.
 
-As it's currently written, the first argument of the main routine is the FEN-notation string of some game; the second is the search depth. Here is a sample input and output:
+As it's currently written, the first argument of the main routine is the FEN-notation string of some game; the second is the search depth. Given these, Drais will compute and print a principal variation. Here is a sample input and output:
 ```
 ghc --make Main.hs
 ./Main "1r5k/1b2K2p/7p/2pp3P/7B/5pp1/4p3/5r2 w - - 0 3" 12
