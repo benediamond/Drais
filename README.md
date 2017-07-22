@@ -7,7 +7,7 @@ Drais employs an iterative-deepening approach, repeatedly calling an internal se
 
 The search depth parameter passed in each case into the main search routine represents the maximum search depth of its Floyd-style quiescence search (see Knuth and Moore, An Analysis of Alpha-Beta Pruning, p. 302), in which "likely" (i.e., capture) moves decrement the remaining search depth less than do unlikely moves.
 
-The engine is a bit slow and rudimentary, but chugs along; an 8-depth search in the middlegame will typically take around 20-30 seconds. The instantaneous heuristic incorporates material, capturing, advanced pawns, central rooks, etc.
+The engine is a bit slow and rudimentary, but chugs along; an 8-depth search in the middlegame will typically take around 20-30 seconds. A depth of 7 or higher is recommended. The instantaneous heuristic incorporates material, castling, advanced pawns, central rooks, etc.
 
 I've also written a JavaScript GUI. I've compiled Drais into JavaScript using Haste; I'd like to thank them for their work. A live version of the applet is available at http://www.math.jhu.edu/~bdiamond/chess/chess.html.
 
