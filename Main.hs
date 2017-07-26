@@ -17,9 +17,9 @@ data Game                                     = Game {locations     :: Locations
                                                       incentive     :: [Bool], -- [K Q k q] -- which castles have actually occurred. This is used _internally_ by the engine to incentivize castling
                                                       unlikelihood  :: Int, -- by how much should this position decrement the search depth? Lower for more "likely" moves, e.g. captures
                                                       enpassant     :: (Int,Int), -- en passant target square
-                                                      heur          :: Float, -- instantaneous heurstic eval
-                                                      eval          :: Float, -- minimax eval
-                                                      pv            :: Maybe Game} -- the principal variation, or "best" child node
+                                                      heur          :: Double, -- instantaneous heurstic eval
+                                                      eval          :: Double, -- minimax eval
+                                                      child         :: Maybe Game} -- the principal variation, or "best" child node
 
 -- |Performs an iterative-deepening search with user-supplied (ultimate) depth on user-provided game. Operates as a wrapper, repeatedly calling the "populate" routine.
 deepening                                     :: Int->Game->Game
@@ -27,19 +27,19 @@ deepening 0 game                              = populate 0 [False,False,False,Fa
 deepening n game                              = populate n [False,False,False,False] (specials False) (specials True) (deepening (n - 1) game)
 
 -- |Fundamental routine which populates a game with a principal variation of user-specified (maximum) depth.
-populate                                      :: Int->[Bool]->Float->Float->Game->Game -- (max) depth, _parent_'s cancastle flags, alpha, beta, game --> game
+populate                                      :: Int->[Bool]->Double->Double->Game->Game -- (max) depth, _parent_'s cancastle flags, alpha, beta, game --> game
 populate n po a b (Game l t ca o u m h e ch)  = if n <= 0 then Game l t ca o u m h h Nothing else if legal then Game l t ca o u m h score (Just winner) else Game l t ca o u m h (specials t) Nothing
     where
-        score                                 = if (if t then (<) else (>)) (eval winner) ((specials (not t))*0.999) then if stale then 0 else specials (not t) else wt True h (eval winner)
+        score                                 = if (if t then (<) else (>)) (eval winner) ((specials . not $ t) * 0.999) && stale then 0 else wt True h $ eval winner
             where
-                stale                         = (if t then (>) else (<)) (eval . populate 1 o (specials False) (specials True) $ Game l (not t) ca o u m h e ch) ((specials . not) t * 0.999)
-        winner                                = best t (Game [] (not t) [] [] 0 (0,0) 0.0 ((specials (not t))*0.9999) Nothing) propagated
+                stale                         = (if t then (>) else (<)) (eval . populate 1 o (specials False) (specials True) $ Game l (not t) ca o u m h e ch) ((specials . not $ t) * 0.999)
+        winner                                = best t (Game [] (not t) [] [] 0 (0,0) 0.0 ((specials . not $ t) * 0.9999) Nothing) propagated
             where
                 best t run []                 = run
                 best t run (x:xs)             = best t (if if t then eval x > eval run else eval x < eval run then x else run) xs
         propagated                            = alphabeta True (if t then inva else invb) ready
             where
-                alphabeta _ _ []              = []
+                alphabeta _ _ []              = [] -- alpha-beta pruning algorithm. first parameter: "is it the principal variation?" if not, uses a null window.
                 alphabeta p run (x:xs)        = if t then if run > invb + 0.00001 then [] else let try = populate (n - unlikelihood x) o run (if p then invb else run) x;
                                                                                                    redo = if (not p) && run < eval try && eval try < invb then populate (n - unlikelihood x) o (eval try) invb x else try
                                                                                                    in redo:alphabeta False (max run (eval redo)) xs
@@ -151,7 +151,7 @@ mover fen depth                               = case length diff of 4 -> case he
     where
         diff                                  = filter (\p -> (l1!!p) /= (l2!!p)) [0..63]
         l1                                    = assocs . boarder . locations $ game
-        l2                                    = assocs . boarder . locations . fromJust . pv $ game
+        l2                                    = assocs . boarder . locations . fromJust . child $ game
         game                                  = deepening depth $ loader fen
 
 -- |Reads a FEN and generates a corresponding Game.
@@ -186,7 +186,7 @@ loader fen                                    = let fen1 = drop fen; fen2 = drop
         drop str                              = if head str == ' ' then tail str else drop (tail str)
 
 -- |An auxiliary function that returns very large and very negative floats.
-specials                                      :: Bool->Float
+specials                                      :: Bool->Double
 specials t                                    = if t then fromIntegral positive else fromIntegral negative
     where
         negative, positive                    :: Int
