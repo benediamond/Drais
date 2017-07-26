@@ -108,8 +108,8 @@ heuristic game@(Game l _ ca o _ _ _ _ _)      = game { heur = tot }
                                                 + sum [ if rank <= 3 || ((file == 4 || file == 5) && rank <= 5) then -0.6 else 0 | i <- filter ((== 'p') . snd) l, let (file, rank) = fst i]
                                                 + sum [ if rank == 1 then -0.3 else 0.0 | i <- filter (\p -> snd p=='N'||snd p=='B') l, let rank = snd . fst $ i]
                                                 + sum [ if rank == 8 then 0.3 else 0.0 | i <- filter (\p -> snd p=='n'||snd p=='b') l, let rank = snd . fst $ i]
-                                                + (if o!!0||o!!1 then 0.9 else ((if ca!!0 then -0.5 else 0) + (if ca!!1 then -0.5 else 0))) -- note: potentially remove these latter conditions.
-                                                + (if o!!2||o!!3 then -0.9 else ((if ca!!2 then 0.5 else 0) + (if ca!!3 then 0.5 else 0))) -- they seem to slow down the execution a lot.
+                                                + (if o!!0||o!!1 then 0.9 else ((if ca!!0 then -0.5 else 0) + (if ca!!1 then -0.5 else 0)))
+                                                + (if o!!2||o!!3 then -0.9 else ((if ca!!2 then 0.5 else 0) + (if ca!!3 then 0.5 else 0)))
         val p
             | p=='R'                          = 5
             | p=='N'                          = 3.5
