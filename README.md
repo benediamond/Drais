@@ -1,17 +1,17 @@
 # Drais
 A chess engine written in Haskell
 
-A basic chess engine written in Haskell, using few external libraries or fancy features. As far as I know, Drais is the most complete chess engine written in Haskell thus far. Drais enjoys a blitz rating of about 1500-1600 on the FICS.
+Drais is a basic chess engine written in Haskell. As far as I know, it is the most complete chess engine written in Haskell (and perhaps in any function language) thus far. Drais enjoys ratings of about 1500 in blitz and 1900 in lightning on the [FICS](http://ficsgames.org/cgi-bin/search.cgi?player=benediamond&action=History).
 
-Drais employs an iterative-deepening approach, repeatedly calling an internal search routine with successively higher levels of depth, and retaining after each iteration a principal variation. The internal search routine itself performs the "NegaScout" or "PVS" variant of Alpha-Beta pruning upon each call, using move orderings informed by the most recently retained principal variation as well as by heuristic considerations.
+Drais employs an iterative-deepening approach, repeatedly calling a fundamental search routine with successively higher levels of depth, and retaining after each iteration a principal variation. This search routine itself performs the "Principal Variation Search" or "NegaScout" variant of Alpha-Beta pruning upon each call, using move orderings informed by the most recently retained principal variation, and secondarily by heuristic pre-sorts (in other words, by Internal Iterative Deepning searches of depth 0).
 
-The search depth parameter passed in each case into the main search routine represents the maximum search depth of its Floyd-style quiescence search (see Knuth and Moore, An Analysis of Alpha-Beta Pruning, p. 302), in which "likely" (i.e., capture) moves decrement the remaining search depth less than do unlikely moves.
+The search depth parameter passed in each successive iteration into the main search routine represents the maximum search depth of its Floyd-style quiescence search (see Knuth and Moore, An Analysis of Alpha-Beta Pruning, p. 302), in which "likely" (i.e., capture) moves decrement the remaining depth less than do unlikely moves.
 
-Drais uses a heuristic evaluation function incorporating material, castling, advanced pawns, central rooks, etc. When compiled using GHC's -O2 optimization package, Drais achieves a (_maximal_) search depth of 10 half-moves or higher in just a few seconds.
+Drais uses a heuristic evaluation function incorporating material, castling, advanced pawns, central rooks, etc.
 
-For testing purposes during the earlier stages of the engine's development, I wrote a JavaScript GUI. Drais can be compiled into JavaScript using Haste; unfortunately, substantial slowdowns result. A live version of the applet can be found at http://www.math.jhu.edu/~bdiamond/chess/chess.html.
+For testing purposes during the earlier stages of the engine's development, I wrote a JavaScript GUI. Drais can be compiled into JavaScript using Haste; be advised, however, that, significant slowdowns result. A live version of this applet can be found [here](http://www.math.jhu.edu/~bdiamond/chess/chess.html).
 
-As it's currently written, the first argument of the main routine is the FEN-notation string of some game; the second is the search depth. Given these, Drais will compute and print a principal variation. Here is a sample input and output:
+As it's written in the file uploaded here, the first argument of the main routine is the FEN-notation string of some game; the second is a search depth. Given these, Drais will compute and print a principal variation. Here is a sample input and output:
 ```
 ghc --make -O2 Main.hs
 ./Main "1r5k/1b2K2p/7p/2pp3P/7B/5pp1/4p3/5r2 w - - 0 3" 12
@@ -85,8 +85,6 @@ _ _ _ _ _ _ _ _
 _ _ _ _ _ _ _ _
 Turn: True, Castling: [], Emp: (0,0),  Heuristic: 0.0, Eval: 9.22244969965109e18, Unlikelihood: 0
 ```
-Drais uses a "lazy" legality checking technique whereby a move is not checked for legality until after its own visitation has begun and its (pseudo-)children have been generated. As determining the legality of a move requires knowing its pseudo-children (to determine whether the king can "get taken", etc.), delaying this step until the time of visitation facilitates parsimony and speed.
-
 Differing from most minimax formulations, Drais does not determine a node's evaluation by simply "lifting" the evaluation of its best child. Drais instead uses a "dampening" function whereby a node's evaluation is determined by a weighted average of its best child's evaluation together with its own heuristic evaluation (where the former gets the vast majority of the weight). This "distance dampening" method has a number of advantages. For one, it provides a seamless way of convincing the engine to prefer to undertake a winning move or variation immediately, as opposed to (being indifferent to) delaying it with repeated checks or exchanges. Along a similar vein, it provides a parsimonious way of directing the engine to the shortest-possible mating (and longest-possible getting-mated) sequences. Finally, dampening has technical advantages with regard to the above "lazy" legality-checking scheme. As illegal positions are not deleted from the tree but merely given mating evaluations upon exit of visitation, dampening directs the engine to choose a legal (but eventually mated) position over a flatly illegal one.
 
 This dampening procedure creates complications with respect to the Alpha-Beta and PVS algorithms. Indeed, the local parameters alpha and beta must serve to determine the suitability or rejectability of a child's eval with regard to the higher nodes in the tree against which it will eventually be compared, and comparison across levels is tricky because eval is affine-linearly transformed each time it is lifted. We adopt a procedure whereby the relevant alpha and beta parameters are inverted under a node's weighting function before being made to serve as benchmarks for that node's children. As the dampening function is bijective and order-preserving, order determinations made at the level of the child suffice for comparisons made at higher levels of the tree after all quantites are transformed.
