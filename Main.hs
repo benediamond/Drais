@@ -5,11 +5,10 @@ import Data.List
 import Data.Array
 import Data.Char
 import Data.Maybe
---import Haste.Foreign
---import Haste.Prim
 
 -- |The "Locations" type synonym encodes a piece list. Positions are in algebraic notation. e.g., the starting position: [((1,1),'R'), ((2,1),'N'), ... , ((8,8), 'r')]
 type Locations                                = [((Int, Int), Char)]
+
 -- |The "Game" data type encodes a board state and all of its relevant accompanying information.
 data Game                                     = Game {locations     :: Locations, -- position's "piece list"
                                                       turn          :: Bool, -- whose turn is it? True iff white
@@ -137,23 +136,6 @@ display (Game l t ca o u m h e _)             = unlines [unwords [ [board!(i,j)]
 variation                                     :: Game->String
 variation game@(Game _ _ _ _ _ _ _ _ ch)      = display game ++ if isNothing ch then "" else variation (fromJust ch)
 
--- |Takes a FEN of a desired game position and a (max) search depth, populates it using an iterative-deepening search, and then returns the source and target squares of the best move, in the format [sourcefile, sourcerank, targetfile, targetrank]
-mover                                         ::String->Int->(Int,Int,Int,Int)
-mover fen depth                               = case length diff of 4 -> case head diff of 0 -> (5,1,3,1) -- Q
-                                                                                           7 -> (5,8,3,8) -- q
-                                                                                           32 -> (5,1,7,1) -- K
-                                                                                           39 -> (5,8,7,8) -- k
-                                                                    3 -> if head diff `mod` 8 <= 3 then if head diff `mod` 8 == 3 then (head diff `quot` 8 + 1, head diff `mod` 8 + 1, head diff `quot` 8 + 2, head diff `mod` 8) -- black takes white en passant to the right
-                                                                                                                                  else (head diff `quot` 8 + 2, head diff `mod` 8 + 2, head diff `quot` 8 + 1, head diff `mod` 8 + 1) -- black takes white en passant to the left
-                                                                                                   else if last diff `mod` 8 == 5 then (head diff `quot` 8 + 1, head diff `mod` 8 + 1, head diff `quot` 8 + 2, head diff `mod` 8 + 2) -- white takes black en passant to the right
-                                                                                                                                  else (head diff `quot` 8 + 2, head diff `mod` 8 + 1, head diff `quot` 8 + 1, head diff `mod` 8 + 2) -- white takes black en passant to the left
-                                                                    2 -> let (af,ar) = (diff!!0 `quot` 8, diff!!0 `mod` 8); (bf,br) = (diff!!1 `quot` 8, diff!!1 `mod` 8) in if snd (l2!!head diff) == '_' then (af + 1, ar + 1, bf + 1, br + 1) else (bf + 1, br + 1, af + 1, ar + 1)
-    where
-        diff                                  = filter (\p -> l1!!p /= l2!!p) [0..63]
-        l1                                    = assocs . boarder . locations $ game
-        l2                                    = assocs . boarder . locations . fromJust . child $ game
-        game                                  = deepening depth $ loader fen
-
 -- |Reads a FEN and generates a corresponding Game.
 loader                                        :: String->Game
 loader fen                                    = let fen1 = drop fen; fen2 = drop fen1; fen3 = drop fen2
@@ -199,9 +181,7 @@ replace (-1) new (x:xs)                       = x:xs
 replace 0 new (x:xs)                          = new:xs
 replace n new (x:xs)                          = x:replace (n-1) new xs
 
---main                                          = do -- ENABLE THIS MAIN BLOCK, as well as the imports Haste.Foreign and Haste.Prim above (and disable the below one), if you'd like to compile with Haste and export "mover" to JavaScript.
---                                                  export (toJSStr "mover") mover
-
+-- |Prints the principal variation of the position whose FEN is given by the first argument, where the search depth is given by the second.
 main                                          = do
                                                   strs <- getArgs
-                                                  putStr . variation $ deepening (read . head . tail $ strs) (loader . head $ strs) -- Prints the principal variation of the game whose FEN is given by the first argument, and (integral) max search depth is given by the second.
+                                                  putStr . variation $ deepening (read . head . tail $ strs) (loader . head $ strs)
