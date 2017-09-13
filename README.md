@@ -1,13 +1,13 @@
 # Drais
 A chess engine written in Haskell
 
-Drais is a basic chess engine written in Haskell. As far as I know, it is the most complete chess engine written in Haskell (and perhaps in any function language) thus far. Drais enjoys ratings of about 1500 in blitz and 1900 in lightning on the [FICS](http://ficsgames.org/cgi-bin/search.cgi?player=benediamond&action=History).
+Drais is a basic chess engine written in Haskell, using no external libraries. Drais occasionally plays on the [FICS](http://ficsgames.org/cgi-bin/search.cgi?player=benediamond&action=History), where it enjoys ratings of 1500-1600 in blitz and 1900-2000 in lightning.
 
-Drais employs an iterative-deepening approach, repeatedly calling a fundamental search routine with successively higher levels of depth, and retaining after each iteration a principal variation. This search routine itself performs the "Principal Variation Search" or "NegaScout" variant of Alpha-Beta pruning upon each call, using move orderings informed by the most recently retained principal variation, and secondarily by heuristic pre-sorts (in other words, by Internal Iterative Deepning searches of depth 0).
+Drais employs an iterative-deepening approach, repeatedly calling an internal search routine with successively higher levels of depth and retaining after each iteration a principal variation. This search routine itself performs the "Principal Variation Search" or "NegaScout" variant of Alpha-Beta pruning upon each call, using move orderings informed by the most recently retained principal variation as well as by heuristic pre-sorts (that is, by Internal Iterative Deepning searches of minimal depth).
 
 The search depth parameter passed in each successive iteration into the main search routine represents the maximum search depth of its Floyd-style quiescence search (see Knuth and Moore, An Analysis of Alpha-Beta Pruning, p. 302), in which "likely" (i.e., capture) moves decrement the remaining depth less than do unlikely moves.
 
-Drais uses a heuristic evaluation function incorporating material, castling, advanced pawns, central rooks, etc.
+Drais uses a heuristic evaluation function which incorporates material, castling, advanced pawns, central rooks, and other similar considerations.
 
 For testing purposes during the earlier stages of the engine's development, I wrote a JavaScript GUI. Drais can be compiled into JavaScript using Haste; be advised, however, that, significant slowdowns result. A live version of this applet can be found [here](http://www.math.jhu.edu/~bdiamond/chess/chess.html).
 
