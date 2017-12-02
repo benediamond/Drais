@@ -1,0 +1,997 @@
+<html>
+<head>
+<title>Drais: A chess engine written in Haskell</title>
+<script type="text/javascript">
+function printfen() {
+    var str = "";
+    var running = 0;
+    for (var r = 8; r>=1; r--) {
+        for (var c = 1; c<=8; c++) {
+            if (elements[r][c].hasChildNodes()) {
+                if (running!=0) { str+=running; running = 0; }
+                switch(elements[r][c].firstChild.getAttribute('src')) {
+                    case 'Pieces/blackrook.gif': str+='r'; break;
+                    case 'Pieces/blackknight.gif': str+='n'; break;
+                    case 'Pieces/blackbishop.gif': str+='b'; break;
+                    case 'Pieces/blackqueen.gif': str+='q'; break;
+                    case 'Pieces/blackking.gif': str+='k'; break;
+                    case 'Pieces/blackpawn.gif': str+='p'; break;
+                    case 'Pieces/whiterook.gif': str+='R'; break;
+                    case 'Pieces/whiteknight.gif': str+='N'; break;
+                    case 'Pieces/whitebishop.gif': str+='B'; break;
+                    case 'Pieces/whitequeen.gif': str+='Q'; break;
+                    case 'Pieces/whiteking.gif': str+='K'; break;
+                    case 'Pieces/whitepawn.gif': str+='P'; break;
+                    case 'Pieces/blackrook.gif': str+='R'; break;
+                }
+            }
+            else running++;
+        }
+        if (running !=0) { str+=running; running = 0; }
+        if (r!=1) str+='/'
+    }
+    if (counter%2==0) str+=' w ';
+    else str+=' b ';
+    if (castles[0]&&castles[1]&&castles[2]&&castles[3]) str+='-';
+    else {
+        if (!castles[0]) str+='K';
+        if (!castles[1]) str+='Q';
+        if (!castles[2]) str+='k';
+        if (!castles[3]) str+='q';
+    }
+    if (emptarget[0]==0) str+=' -';
+    else {
+        if (emptarget[1]==1) str+=' a'+emptarget[0];
+        if (emptarget[1]==2) str+=' b'+emptarget[0];
+        if (emptarget[1]==3) str+=' c'+emptarget[0];
+        if (emptarget[1]==4) str+=' d'+emptarget[0];
+        if (emptarget[1]==5) str+=' e'+emptarget[0];
+        if (emptarget[1]==6) str+=' f'+emptarget[0];
+        if (emptarget[1]==7) str+=' g'+emptarget[0];
+        if (emptarget[1]==8) str+=' h'+emptarget[0];
+    }
+    str+=' 0 0';
+    return str;
+}
+function incheck(color) {
+    if (color) { //white
+        for (var i = 17; i<=32; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            highlight(i, true, false);
+            if (elements[9-elements[10][5].parentNode.parentNode.sectionRowIndex][elements[10][5].parentNode.cellIndex].getAttribute('onclick')!=null) return true;
+        }}
+    }
+    else { //black
+        for (var i = 1; i<=16; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            highlight(i, false, false);
+            if (elements[9-elements[10][29].parentNode.parentNode.sectionRowIndex][elements[10][29].parentNode.cellIndex].getAttribute('onclick')!=null) return true;
+        }}
+    }
+    return false;
+}
+function cancastle(type) {
+    if (type==0) {
+        for (var i = 17; i<=32; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            if (9-elements[10][i].parentNode.parentNode.sectionRowIndex == 1 && (elements[10][i].parentNode.cellIndex == 6 || elements[10][i].parentNode.cellIndex == 7)) return false;
+        }}
+        for (var i = 1; i<=16; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            highlight(i, false, false);
+            if (elements[1][5].getAttribute('onclick')!=null||elements[1][6].getAttribute('onclick')!=null||elements[1][7].getAttribute('onclick')!=null) return false;
+            if (elements[10][i].getAttribute('src') == 'Pieces/blackpawn.gif') {
+                var targets = [9-elements[10][i].parentNode.parentNode.sectionRowIndex - 1, elements[10][i].parentNode.cellIndex - 1, elements[10][i].parentNode.cellIndex - 1];
+                if (targets[0]==1&&(targets[1]==5||targets[1]==6||targets[1]==7||targets[2]==5||targets[2]==6||targets[2]==7)) return false;
+            }
+        }}
+    }
+    if (type==1) {
+        for (var i = 17; i<=32; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            if (9-elements[10][i].parentNode.parentNode.sectionRowIndex == 1 && (elements[10][i].parentNode.cellIndex == 2 || elements[10][i].parentNode.cellIndex == 3 || elements[10][i].parentNode.cellIndex == 4)) return false;
+        }}
+        for (var i = 1; i<=16; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            highlight(i, false, false);
+            if (elements[1][3].getAttribute('onclick')!=null||elements[1][4].getAttribute('onclick')!=null||elements[1][5].getAttribute('onclick')!=null) return false;
+            if (elements[10][i].getAttribute('src') == 'Pieces/blackpawn.gif') {
+                var targets = [9-elements[10][i].parentNode.parentNode.sectionRowIndex - 1, elements[10][i].parentNode.cellIndex - 1, elements[10][i].parentNode.cellIndex + 1];
+                if (targets[0]==1&&(targets[1]==3||targets[1]==4||targets[1]==5||targets[2]==3||targets[2]==4||targets[2]==5)) return false;
+            }
+        }}
+    }
+    if (type==2) {
+        for (var i = 1; i<=16; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            if (9-elements[10][i].parentNode.parentNode.sectionRowIndex == 8 && (elements[10][i].parentNode.cellIndex == 6 || elements[10][i].parentNode.cellIndex == 7)) return false;
+        }}
+        for (var i = 17; i<=32; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            highlight(i, true, false);
+            if (elements[8][5].getAttribute('onclick')!=null||elements[8][6].getAttribute('onclick')!=null||elements[8][7].getAttribute('onclick')!=null) return false;
+            if (elements[10][i].getAttribute('src') == 'Pieces/whitepawn.gif') {
+                var targets = [9-elements[10][i].parentNode.parentNode.sectionRowIndex + 1, elements[10][i].parentNode.cellIndex - 1, elements[10][i].parentNode.cellIndex + 1];
+                if (targets[0]==8&&(targets[1]==5||targets[1]==6||targets[1]==7||targets[2]==5||targets[2]==6||targets[2]==7)) return false;
+            }
+        }}
+    }
+    if (type==3) {
+        for (var i = 1; i<=16; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            if (9-elements[10][i].parentNode.parentNode.sectionRowIndex == 8 && (elements[10][i].parentNode.cellIndex == 2 || elements[10][i].parentNode.cellIndex == 3 || elements[10][i].parentNode.cellIndex == 4)) return false;
+        }}
+        for (var i = 17; i<=32; i++) { if (elements[10][i].parentElement!=null&&elements[10][i].parentElement.parentElement.id!="repository") {
+            highlight(i, true, false);
+            if (elements[8][3].getAttribute('onclick')!=null||elements[8][4].getAttribute('onclick')!=null||elements[8][5].getAttribute('onclick')!=null) return false;
+            if (elements[10][i].getAttribute('src') == 'Pieces/whitepawn.gif') {
+                var targets = [9-elements[10][i].parentNode.parentNode.sectionRowIndex + 1, elements[10][i].parentNode.cellIndex - 1, elements[10][i].parentNode.cellIndex + 1];
+                if (targets[0]==8&&(targets[1]==3||targets[1]==4||targets[1]==5||targets[2]==3||targets[2]==4||targets[2]==5)) return false;
+            }
+        }}
+    }
+    return true;
+}
+function resetsquares() {
+    for (var r=8; r>=1; r--) { for (var c=1; c<=8; c++) {
+        //Resets all squares (i.e., those previously-highlighted) back to white and blue
+        if (((r+c)%2)==1) elements[r][c].style = 'background-color:#F6F6F6;height:54;width:54;';
+        else elements[r][c].style = 'background-color:#799AA5;height:54;width:54;';
+        elements[r][c].removeAttribute('onclick');
+    }}
+}
+function player(who) {
+    if (who) {
+        compplays[0]=!compplays[0];
+        if (whiteplay.style.border=='5px solid grey') whiteplay.style = 'width: 60px; border: 5px solid #EFBF5B; border-radius: 5px; background-color:#F9F9F9'
+        else whiteplay.style = 'width: 60px; border: 5px solid grey; border-radius: 5px; background-color:#B3B3B3';
+    }
+    else {
+        compplays[1]=!compplays[1];
+        if (blackplay.style.border=='5px solid grey') blackplay.style = 'width: 60px; border: 5px solid #EFBF5B; border-radius: 5px; background-color:#F9F9F9'
+        else blackplay.style = 'width: 60px; border: 5px solid grey; border-radius: 5px; background-color:#B3B3B3';
+    }
+    if (compplays[0]||compplays[1]) {
+        plytd.style = 'border: 5px solid #EFBF5B; border-radius: 5px; background-color:#F9F9F9';
+    }
+    else plytd.style = 'border: 5px solid grey; border-radius: 5px; background-color:#F9F9F9';
+    setTimeout(next,50);
+}
+//Highlights the proper cells upon clicking a piece. Also endows highlighted cells with an onclick='move()' or onclick='take()' function.
+function highlight(idx, color, seek) {
+    //The following two variables will store the position of the clicked piece's square.
+    var id = elements[10][idx];
+    var row=9-id.parentNode.parentNode.sectionRowIndex;
+    var cell=id.parentNode.cellIndex;
+
+    var increment;
+    var shift=new Array(4);
+
+    //Restricts "highlight-able" pieces to those of the proper color
+    if ((counter%2==0)==color) {
+        resetsquares();
+        //Clicked square becomes orange
+        id.parentNode.style = 'background-color:#EFBF5B;height:54;width:54;';
+        type=id.getAttribute('src');
+        if (type=='Pieces/blackpawn.gif') {
+            if (row==7) {
+                increment=1;
+                while ((!(elements[row-increment][cell].hasChildNodes()))&&(increment<=2)) {
+                    if (((row-increment+cell)%2)==1) elements[row-increment][cell].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[row-increment][cell].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[row-increment][cell].setAttribute('onclick', 'move('+idx+','+(row-increment)+','+cell+')');
+                    increment++;
+                }
+            }
+            else if (!(elements[row-1][cell].hasChildNodes())) {
+                if (((row-1+cell)%2)==1) elements[row-1][cell].style = 'background-color:#595855;height:54;width:54;';
+                else elements[row-1][cell].style = 'background-color:#2B4E69;height:54;width:54;';
+                elements[row-1][cell].setAttribute('onclick', 'move('+idx+','+(row-1)+','+cell+')');
+            }
+            if ((elements[row-1][cell-1].hasChildNodes())&&((row-1)>=1&&(cell-1)>=1)&&(elements[row-1][cell-1].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                elements[row-1][cell-1].style = 'background-color:#B22222;height:54;width:54;';
+                elements[row-1][cell-1].setAttribute('onclick', 'take('+idx+','+(row-1)+','+(cell-1)+')');
+            }
+            if ((elements[row-1][(cell+1)].hasChildNodes())&&((row-1)>=1&&(cell+1)<=8)&&(elements[row-1][(cell+1)].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                elements[row-1][(cell+1)].style = 'background-color:#B22222;height:54;width:54;';
+                elements[row-1][(cell+1)].setAttribute('onclick', 'take('+idx+','+(row-1)+','+(cell+1)+')');
+            }
+            if (row - emptarget[0] == 1 && Math.abs(emptarget[1] - cell) == 1) {
+                elements[emptarget[0]][emptarget[1]].style = 'background-color:#B22222;height:54;width:54;';
+                elements[emptarget[0]][emptarget[1]].setAttribute('onclick', 'emp('+idx+','+emptarget[0]+','+emptarget[1]+')');
+            }
+        }
+        if (type=='Pieces/whitepawn.gif') {
+            if (row==2) {
+                increment=1;
+                while ((!(elements[row+increment][cell].hasChildNodes()))&&(increment<=2)) {
+                    if (((row+increment+cell)%2)==1) elements[row+increment][cell].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[row+increment][cell].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[row+increment][cell].setAttribute('onclick', 'move('+idx+','+(row+increment)+','+cell+')');
+                    increment++;
+                }
+            }
+            else if (!(elements[row+1][cell].hasChildNodes())) {
+                if (((row+1+cell)%2)==1) elements[row+1][cell].style = 'background-color:#595855;height:54;width:54;';
+                else elements[row+1][cell].style = 'background-color:#2B4E69;height:54;width:54;';
+                elements[row+1][cell].setAttribute('onclick', 'move('+idx+','+(row+1)+','+cell+')');
+            }
+            if ((elements[(row+1)][cell-1].hasChildNodes())&&((row+1)<=8&&(cell-1)>=1)&&(elements[(row+1)][cell-1].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                elements[(row+1)][cell-1].style = 'background-color:#B22222;height:54;width:54;';
+                elements[(row+1)][cell-1].setAttribute('onclick', 'take('+idx+','+(row+1)+','+(cell-1)+')');
+            }
+            if ((elements[(row+1)][(cell+1)].hasChildNodes())&&((row+1)<=8&&(cell+1)<=8)&&(elements[(row+1)][(cell+1)].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                elements[(row+1)][(cell+1)].style = 'background-color:#B22222;height:54;width:54;';
+                elements[(row+1)][(cell+1)].setAttribute('onclick', 'take('+idx+','+(row+1)+','+(cell+1)+')');
+            }
+            if (emptarget[0] - row == 1 && Math.abs(emptarget[1] - cell) == 1) {
+                elements[emptarget[0]][emptarget[1]].style = 'background-color:#B22222;height:54;width:54;';
+                elements[emptarget[0]][emptarget[1]].setAttribute('onclick', 'emp('+idx+','+emptarget[0]+','+emptarget[1]+')');
+            }
+        }
+        if (type=='Pieces/blackrook.gif'||type=='Pieces/whiterook.gif') {
+            for (var h=2; h<=3; h++) {
+                increment=1;
+                shiftreset();
+                while ((shift[h]<=8&&shift[h]>=1)&&(!(elements[row][shift[h]].hasChildNodes()))) {
+                    if (((row+cell+increment)%2)==1) elements[row][shift[h]].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[row][shift[h]].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[row][shift[h]].setAttribute('onclick', 'move('+idx+','+row+','+shift[h]+')');
+                    increment++;
+                    shiftreset();
+                }
+                if ((shift[h]<=8&&shift[h]>=1)&&(elements[row][shift[h]].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                    elements[row][shift[h]].style = 'background-color:#B22222;height:54;width:54;';
+                    elements[row][shift[h]].setAttribute('onclick', 'take('+idx+','+row+','+shift[h]+')');
+                }
+            }
+            for (var v=0; v<=1; v++) {
+                increment=1;
+                shiftreset();
+                while ((shift[v]<=8&&shift[v]>=1)&&(!(elements[shift[v]][(cell)].hasChildNodes()))) {
+                    if (((row+increment+cell)%2)==1) elements[shift[v]][cell].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[shift[v]][cell].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[shift[v]][cell].setAttribute('onclick', 'move('+idx+','+shift[v]+','+cell+')');
+                    increment++;
+                    shiftreset();
+                }
+                if ((shift[v]<=8&&shift[v]>=1)&&(elements[shift[v]][cell].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                    elements[shift[v]][cell].style = 'background-color:#B22222;height:54;width:54;';
+                    elements[shift[v]][cell].setAttribute('onclick', 'take('+idx+','+shift[v]+','+cell+')');
+                }
+            }
+        }
+        if (type=='Pieces/blackbishop.gif'||type=='Pieces/whitebishop.gif') {
+            for (var v=0; v<=1; v++) { for (var h=2; h<=3; h++) {
+                increment=1;
+                shiftreset();
+                while ((shift[v]<=8&&shift[v]>=1&&shift[h]<=8&&shift[h]>=1)&&(!(elements[shift[v]][(shift[h])].hasChildNodes()))) {
+                    if (((row+cell)%2)==1) elements[shift[v]][shift[h]].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[shift[v]][shift[h]].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[shift[v]][shift[h]].setAttribute('onclick', 'move('+idx+','+shift[v]+','+shift[h]+')');
+                    increment++;
+                    shiftreset();
+                }
+                if ((shift[v]<=8&&shift[v]>=1&&shift[h]<=8&&shift[h]>=1)&&(elements[shift[v]][shift[h]].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                    elements[shift[v]][shift[h]].style = 'background-color:#B22222;height:54;width:54;';
+                    elements[shift[v]][shift[h]].setAttribute('onclick', 'take('+idx+','+shift[v]+','+shift[h]+')');
+                }
+            }}
+        }
+        if (type=='Pieces/blackqueen.gif'||type=='Pieces/whitequeen.gif') {
+            for (var h=2; h<=3; h++) {
+                increment=1;
+                shiftreset();
+                while ((shift[h]<=8&&shift[h]>=1)&&(!(elements[row][shift[h]].hasChildNodes()))) {
+                    if (((row+cell+increment)%2)==1) elements[row][shift[h]].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[row][shift[h]].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[row][shift[h]].setAttribute('onclick', 'move('+idx+','+row+','+shift[h]+')');
+                    increment++;
+                    shiftreset();
+                }
+                if ((shift[h]<=8&&shift[h]>=1)&&(elements[row][shift[h]].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                    elements[row][shift[h]].style = 'background-color:#B22222;height:54;width:54;';
+                    elements[row][shift[h]].setAttribute('onclick', 'take('+idx+','+row+','+shift[h]+')');
+                }
+            }
+            for (var v=0; v<=1; v++) {
+                increment=1;
+                shiftreset();
+                while ((shift[v]<=8&&shift[v]>=1)&&(!(elements[shift[v]][(cell)].hasChildNodes()))) {
+                    if (((row+increment+cell)%2)==1) elements[shift[v]][cell].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[shift[v]][cell].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[shift[v]][cell].setAttribute('onclick', 'move('+idx+','+shift[v]+','+cell+')');
+                    increment++;
+                    shiftreset();
+                }
+                if ((shift[v]<=8&&shift[v]>=1)&&(elements[shift[v]][cell].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                    elements[shift[v]][cell].style = 'background-color:#B22222;height:54;width:54;';
+                    elements[shift[v]][cell].setAttribute('onclick', 'take('+idx+','+shift[v]+','+cell+')');
+                }
+            }
+            for (var v=0; v<=1; v++) { for (var h=2; h<=3; h++) {
+                increment=1;
+                shiftreset();
+                while ((shift[v]<=8&&shift[v]>=1&&shift[h]<=8&&shift[h]>=1)&&(!(elements[shift[v]][shift[h]].hasChildNodes()))) {
+                    if (((row+cell)%2)==1) elements[shift[v]][shift[h]].style = 'background-color:#595855;height:54;width:54;';
+                    else elements[shift[v]][shift[h]].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[shift[v]][shift[h]].setAttribute('onclick', 'move('+idx+','+shift[v]+','+shift[h]+')');
+                    increment++;
+                    shiftreset();
+                }
+                if ((shift[v]<=8&&shift[v]>=1&&shift[h]<=8&&shift[h]>=1)&&(elements[shift[v]][shift[h]].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString())) {
+                    elements[shift[v]][shift[h]].style = 'background-color:#B22222;height:54;width:54;';
+                    elements[shift[v]][shift[h]].setAttribute('onclick', 'take('+idx+','+shift[v]+','+shift[h]+')');
+                }
+            }}
+        }
+        if (type=='Pieces/blackknight.gif'||type=='Pieces/whiteknight.gif') {
+            for (var a = -1; a<=1; a+=2) { for (var b = -2; b<=2; b+=4) {
+                if (row+a<=8&&row+a>=1&&cell+b<=8&&cell+b>=1) {
+                    if (!(elements[row+a][cell+b].hasChildNodes())) {
+                        if (((row+cell+increment)%2)==1) elements[row+a][cell+b].style = 'background-color:#595855;height:54;width:54;';
+                        else elements[row+a][cell+b].style = 'background-color:#2B4E69;height:54;width:54;';
+                        elements[row+a][cell+b].setAttribute('onclick', 'move('+idx+','+(row+a)+','+(cell+b)+')');
+                    }
+                    else if (elements[row+a][cell+b].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString()) {
+                        elements[row+a][cell+b].style = 'background-color:#B22222;height:54;width:54;';
+                        elements[row+a][cell+b].setAttribute('onclick', 'take('+idx+','+(row+a)+','+(cell+b)+')');
+                    }
+                }
+            }}
+            for (var a = -2; a<=2; a+=4) { for (var b = -1; b<=1; b+=2) {
+                if (row+a<=8&&row+a>=1&&cell+b<=8&&cell+b>=1) {
+                    if (!(elements[row+a][cell+b].hasChildNodes())) {
+                        if (((row+cell+increment)%2)==1) elements[row+a][cell+b].style = 'background-color:#595855;height:54;width:54;';
+                        else elements[row+a][cell+b].style = 'background-color:#2B4E69;height:54;width:54;';
+                        elements[row+a][cell+b].setAttribute('onclick', 'move('+idx+','+(row+a)+','+(cell+b)+')');
+                    }
+                    else if (elements[row+a][cell+b].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString()) {
+                        elements[row+a][cell+b].style = 'background-color:#B22222;height:54;width:54;';
+                        elements[row+a][cell+b].setAttribute('onclick', 'take('+idx+','+(row+a)+','+(cell+b)+')');
+                    }
+                }
+            }}
+        }
+        if (type=='Pieces/blackking.gif'||type=='Pieces/whiteking.gif') {
+            increment=1;
+            shiftreset();
+            for (var h=2; h<=3; h++) {
+                if (shift[h]<=8&&shift[h]>=1) {
+                    if (!(elements[row][shift[h]].hasChildNodes())) {
+                        if (((row+shift[h])%2)==1) elements[row][shift[h]].style = 'background-color:#595855;height:54;width:54;';
+                        else elements[row][shift[h]].style = 'background-color:#2B4E69;height:54;width:54;';
+                        elements[row][shift[h]].setAttribute('onclick', 'move('+idx+','+row+','+shift[h]+')');
+                    }
+                    else if (elements[row][shift[h]].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString()) {
+                        elements[row][shift[h]].style = 'background-color:#B22222;height:54;width:54;';
+                        elements[row][shift[h]].setAttribute('onclick', 'take('+idx+','+row+','+shift[h]+')');
+                    }
+                }
+            }
+            for (var v=0; v<=1; v++) {
+                if (shift[v]<=8&&shift[v]>=1) {
+                    if (!(elements[shift[v]][cell].hasChildNodes())) {
+                        if (((shift[v]+cell)%2)==1) elements[shift[v]][cell].style = 'background-color:#595855;height:54;width:54;';
+                        else elements[shift[v]][cell].style = 'background-color:#2B4E69;height:54;width:54;';
+                        elements[shift[v]][cell].setAttribute('onclick', 'move('+idx+','+shift[v]+','+cell+')');
+                    }
+                    else if (elements[shift[v]][cell].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString()) {
+                        elements[shift[v]][cell].style = 'background-color:#B22222;height:54;width:54;';
+                        elements[shift[v]][cell].setAttribute('onclick', 'take('+idx+','+shift[v]+','+cell+')');
+                    }
+                }
+            }
+            for (var v=0; v<=1; v++) { for (var h=2; h<=3; h++) {
+                if (shift[v]<=8&&shift[v]>=1&&shift[h]<=8&&shift[h]>=1) {
+                    if (!(elements[shift[v]][shift[h]].hasChildNodes())) {
+                        if (((shift[v]+shift[h])%2)==1) elements[shift[v]][shift[h]].style = 'background-color:#595855;height:54;width:54;';
+                        else elements[shift[v]][shift[h]].style = 'background-color:#2B4E69;height:54;width:54;';
+                        elements[shift[v]][shift[h]].setAttribute('onclick', 'move('+idx+','+shift[v]+','+shift[h]+')');
+                    }
+                    else if (elements[shift[v]][shift[h]].firstChild.getAttribute('onclick').match(/false|true/)!=color.toString()) {
+                        elements[shift[v]][shift[h]].style = 'background-color:#B22222;height:54;width:54;';
+                        elements[shift[v]][shift[h]].setAttribute('onclick', 'take('+idx+','+shift[v]+','+shift[h]+')');
+                    }
+                }
+            }}
+        }
+        if (seek) {
+            var bads = [];
+            for (var r=8; r>=1; r--) { for (var c=1; c<=8; c++) {
+                if (elements[r][c].getAttribute('onclick')!=null) {
+                    counter--;
+                    var action = elements[r][c].getAttribute('onclick');
+                    var forbidden = false;
+                    if (action.match(/move/)!=null) {
+                        elements[r][c].appendChild(id);
+                        forbidden = incheck(counter%2==0)
+                        elements[row][cell].appendChild(id);
+                    }
+                    if (action.match(/take/)!=null) {
+                        var taken = elements[r][c].removeChild(elements[r][c].firstChild);
+                        elements[r][c].appendChild(id);
+                        forbidden = incheck(counter%2==0)
+                        elements[row][cell].appendChild(id);
+                        elements[r][c].appendChild(taken);
+                    }
+                    if (forbidden) bads.push([r, c])
+                    counter++;
+                    highlight(idx, counter%2==0, false);
+                }
+            }}
+            if (type=='Pieces/blackking.gif') {
+                var cancastletemp = [false, false];
+                counter--;
+                if (!castles[2]) cancastletemp[0] = cancastle(2);
+                if (!castles[3]) cancastletemp[1] = cancastle(3);
+                counter++;
+                highlight(idx, counter%2==0, false)
+                if (cancastletemp[0]) {
+                    elements[8][7].style = 'background-color:#595855;height:54;width:54;';
+                    elements[8][7].setAttribute('onclick', 'castle('+2+')');
+                }
+                if (cancastletemp[1]) {
+                    elements[8][3].style = 'background-color:#595855;height:54;width:54;';
+                    elements[8][3].setAttribute('onclick', 'castle('+3+')');
+                }
+            }
+            if (type=='Pieces/whiteking.gif') {
+                var cancastletemp = [false, false];
+                counter--;
+                if (!castles[0]) cancastletemp[0] = cancastle(0);
+                if (!castles[1]) cancastletemp[1] = cancastle(1);
+                counter++;
+                highlight(idx, counter%2==0, false)
+                if (cancastletemp[0]) {
+                    elements[1][7].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[1][7].setAttribute('onclick', 'castle('+0+')');
+                }
+                if (cancastletemp[1]) {
+                    elements[1][3].style = 'background-color:#2B4E69;height:54;width:54;';
+                    elements[1][3].setAttribute('onclick', 'castle('+1+')');
+                }
+            }
+            for (i = 0; i<bads.length; i++) { //if MOVING TO THIS SQUARE IS ILLEGAL.
+                var r = bads[i][0];
+                var c = bads[i][1];
+                if (((r+c)%2)==1) elements[r][c].style = 'background-color:#F6F6F6;height:54;width:54;';
+                else elements[r][c].style = 'background-color:#799AA5;height:54;width:54;';
+                elements[r][c].removeAttribute('onclick');
+            }
+        }
+    }
+    function shiftreset() {
+        shift[0]=row+increment;
+        shift[1]=row-increment;
+        shift[2]=cell+increment;
+        shift[3]=cell-increment;
+    }
+}
+
+//Function which, upon clicking a highlighted square, moves the piece into that square and performs necessary re-sets.
+function move(idx,row,cell) {
+    var id = elements[10][idx];
+    var r=9-id.parentNode.parentNode.sectionRowIndex;
+    var c=id.parentNode.cellIndex;
+    //Appends the piece-child to the new square, sets the desination square orange
+    resetsquares();
+    elements[row][cell].appendChild(id);
+    elements[r][c].style = 'background-color:#EFBF5B;height:54;width:54;';
+    elements[row][cell].style = 'background-color:#EFBF5B;height:54;width:54;';
+
+    if (idx>=9&&idx<=16&&row==1) id.setAttribute('src','Pieces/blackqueen.gif');
+    if (idx>=17&&idx<=24&&row==8) id.setAttribute('src','Pieces/whitequeen.gif');
+    if (idx==5) {castles[2] = true; castles[3] = true;}
+    if (idx==29) {castles[0] = true; castles[1] = true;}
+    if (idx==1) castles[3] = true;
+    if (idx==8) castles[2] = true;
+    if (idx==25) castles[1] = true;
+    if (idx==32) castles[0] = true;
+    if (idx>=9&&idx<=16&&r-row==2) emptarget = [row+1, c];
+    else if (idx>=16&&idx<=24&&row-r==2) emptarget = [row-1, c];
+    else emptarget = [0,0];
+
+    log(idx,false,"");
+}
+
+function take(idx,row,cell) {
+    var id = elements[10][idx];
+    var r=9-id.parentNode.parentNode.sectionRowIndex;
+    var c=id.parentNode.cellIndex;
+    resetsquares();
+    elements[row][cell].appendChild(id);
+    elements[r][c].style = 'background-color:#EFBF5B;height:54;width:54;';
+    elements[row][cell].style = 'background-color:#4AA02C;height:54;width:54;';
+
+    if (idx>=9&&idx<=16&&row==1) id.setAttribute('src','Pieces/blackqueen.gif');
+    if (idx>=17&&idx<=24&&row==8) id.setAttribute('src','Pieces/whitequeen.gif');
+    if (idx==5) {castles[2] = true; castles[3] = true;}
+    if (idx==29) {castles[0] = true; castles[1] = true;}
+    if (idx==1) castles[3] = true;
+    if (idx==8) castles[2] = true;
+    if (idx==25) castles[1] = true;
+    if (idx==32) castles[0] = true;
+    if (row==1&&cell==8) castles[0] = true;
+    if (row==8&&cell==8) castles[2] = true;
+    if (row==1&&cell==1) castles[1] = true;
+    if (row==8&&cell==1) castles[3] = true;
+
+    //Sets temporary "repository square" value
+    var s = 0;
+    var type = elements[row][cell].firstChild.getAttribute('src');
+    if (type=='Pieces/whiterook.gif') s=1; //white rook
+    if (type=='Pieces/whiteknight.gif') s=2; //white knight
+    if (type=='Pieces/whitebishop.gif') s=3; //white bishop
+    if (type=='Pieces/whitequeen.gif') s=4; //white queen
+    if (type=='Pieces/whitepawn.gif') s=5; //white pawn
+    if (type=='Pieces/blackpawn.gif') s=6; //black pawn
+    if (type=='Pieces/blackqueen.gif') s=7; //black queen
+    if (type=='Pieces/blackbishop.gif') s=8; //black bishop
+    if (type=='Pieces/blackknight.gif') s=9; //black knight
+    if (type=='Pieces/blackrook.gif') s=10; //black rook
+
+    //Appends taken piece to the repository
+    if (s==0) elements[row][cell].removeChild(elements[row][cell].firstChild); //king was taken.
+    else if (repository[s].firstChild.getAttribute('src')=="Pieces/blank.gif") {
+        repository[s].replaceChild(elements[row][cell].firstChild,repository[s].firstChild);
+        repository[s].firstChild.removeAttribute('onclick');
+    }
+    else {
+        elements[row][cell].removeChild(elements[row][cell].firstChild);
+        if (repository[s].childNodes.length==1) repository[s].appendChild(document.createTextNode("x2"));
+        else {
+            repository[s].replaceChild(document.createTextNode("x"+(parseInt(repository[s].lastChild.nodeValue.charAt(1))+1)),repository[s].lastChild);
+        }
+    }
+    emptarget = [0,0];
+
+    log(idx,true,c);
+}
+function castle(type) {
+    resetsquares();
+    if (type==0) {
+        elements[1][7].appendChild(elements[10][29]);
+        elements[1][6].appendChild(elements[10][32]);
+        elements[1][7].style = 'background-color:#EFBF5B;height:54;width:54;';
+        elements[1][6].style = 'background-color:#EFBF5B;height:54;width:54;';
+        castles[0] = true;
+        castles[1] = true;
+        log(0,false,"K");
+    }
+    if (type==1) {
+        elements[1][3].appendChild(elements[10][29]);
+        elements[1][4].appendChild(elements[10][25]);
+        elements[1][3].style = 'background-color:#EFBF5B;height:54;width:54;';
+        elements[1][4].style = 'background-color:#EFBF5B;height:54;width:54;';
+        castles[0] = true;
+        castles[1] = true;
+        log(0,false,"Q");
+    }
+    if (type==2) {
+        elements[8][7].appendChild(elements[10][5]);
+        elements[8][6].appendChild(elements[10][8]);
+        elements[8][7].style = 'background-color:#EFBF5B;height:54;width:54;';
+        elements[8][6].style = 'background-color:#EFBF5B;height:54;width:54;';
+        castles[2] = true;
+        castles[3] = true;
+        log(0,false,"K");
+    }
+    if (type==3) {
+        elements[8][3].appendChild(elements[10][5]);
+        elements[8][4].appendChild(elements[10][1]);
+        elements[8][3].style = 'background-color:#EFBF5B;height:54;width:54;';
+        elements[8][4].style = 'background-color:#EFBF5B;height:54;width:54;';
+        castles[2] = true;
+        castles[3] = true;
+        log(0,false,"Q");
+    }
+    emptarget = [0,0];
+}
+function emp(idx, row, cell) {
+    if (emptarget[0] == 6) elements[6][emptarget[1]].appendChild(elements[5][emptarget[1]].firstChild)
+    else elements[3][emptarget[1]].appendChild(elements[4][emptarget[1]].firstChild)
+    take (idx, emptarget[0],emptarget[1]);
+    emptarget = [0,0];
+}
+//Log's parameters? id, move/take
+function log(idx,t,c) {
+    //Append cycle number
+    var str = "";
+    if (counter%2==0) str+=(counter/2+1)+". ";
+
+    if (c=="K") str+="O-O";
+    else if (c=="Q") str+="O-O-O";
+    else {
+        var id = elements[10][idx];
+        var row = (9-id.parentNode.parentNode.sectionRowIndex);
+        var cell = id.parentNode.cellIndex;
+
+        var type = elements[row][cell].firstChild.getAttribute('src');
+        if (type=='Pieces/whiterook.gif'||type=='Pieces/blackrook.gif') str+="R";
+        if (type=='Pieces/whiteknight.gif'||type=='Pieces/blackknight.gif') str+="N";
+        if (type=='Pieces/whitebishop.gif'||type=='Pieces/blackbishop.gif') str+="B";
+        if (type=='Pieces/whitequeen.gif'||type=='Pieces/blackqueen.gif') str+="Q";
+        if (type=='Pieces/whiteking.gif'||type=='Pieces/blackking.gif') str+="K";
+
+        //Appends the 'x' for take-moves
+        if (t==true) {
+            if (type=='Pieces/whitepawn.gif'||type=='Pieces/blackpawn.gif') str+=letterizer(c);
+            str+="x";
+        }
+        //Appends the letter and row number, along with a line break on odd moves
+        str+=letterizer(cell);
+        str+=row;
+    }
+    str+=" ";
+    moveslogtd.appendChild(document.createTextNode(str));
+    if (counter%2!=0) {
+        moveslogtd.appendChild(document.createElement('br'));
+        whosemove.replaceChild(whitemove,blackmove);
+    }
+    else whosemove.replaceChild(blackmove,whitemove);
+
+    counter++;
+    //Once the moves log fills up, this code will erase old entries and cycle in the new ones.
+    if (counter>=44&&counter%2!=0) {
+        while (moveslogtd.childNodes[1].tagName!="BR") moveslogtd.removeChild(moveslogtd.childNodes[1]);
+        moveslogtd.removeChild(moveslogtd.childNodes[1]);
+    }
+    setTimeout(next,50);
+    function letterizer(c) {
+        if (c==1) return "a";
+        if (c==2) return "b";
+        if (c==3) return "c";
+        if (c==4) return "d";
+        if (c==5) return "e";
+        if (c==6) return "f";
+        if (c==7) return "g";
+        if (c==8) return "h";
+    }
+}
+function next() {
+    if (counter%2==0&&compplays[0]||counter%2!=0&&compplays[1]) {
+        var depth = parseInt(plybox.value);
+        if (!isNaN(depth)&&depth>=3) {
+            var target = Haste.mover(printfen(), depth);
+            elements[target[1]][target[0]].firstChild.click();
+            elements[target[3]][target[2]].click();
+        }
+    }
+}
+</script>
+<style type="text/css" media="all">
+#wholebody {
+    font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+}
+#header {
+    width: 800px;
+    height: 75px;
+    margin: 0 auto;
+    background: #182455;
+    color: #FFFFFF;
+    font-family: Georgia, "Times New Roman", Times, serif;
+    font-size: 23px;
+    text-align: center;
+    padding: 5px;
+}
+#title {
+    font-size: 60px;
+    font-variant: small-caps;
+}
+#mainlowerbody {
+    width: 770px;
+    background: #EEEEEE;
+    text-align: center;
+    margin: 0 auto;
+    padding: 15px;
+}
+#structuraltd {
+    width: 553px;
+}
+#repository td{
+    text-align: center;
+    vertical-align: top;
+    font-size: 14px;
+}
+#repository img {
+    vertical-align: top;
+    width: 100%;
+    border-bottom: solid 2px;
+}
+#moveslogtd {
+    padding: 10px;
+    border: solid 10px;
+    vertical-align: top;
+    text-align: left;
+    font-size: 18px;
+}
+</style>
+</head>
+<body id="wholebody">
+<table style="border-spacing: 0px" align="center">
+<tr>
+<td>
+<table id="header" style="border-spacing: 3px">
+<tr id="title"><td colspan="7">Drais</td></tr>
+<tr id="enginetr"></tr>
+</table>
+<div id = "mainlowerbody"></div>
+</td>
+</tr>
+<tr><td align="center"><a href="https://github.com/benediamond/Drais" target="_blank">Check out Drais on github.</a></td></tr>
+</table>
+<script type="text/javascript" src="main.js"></script>
+<script type="text/javascript">
+//Miscellaneous necessary global variables
+var castles = [false, false, false, false];
+var emptarget = [0,0];
+var counter=0;
+var compplays=[false, false];
+
+dummy1=document.createElement('td');
+dummy1.style = 'width: 100px;';
+enginetr.appendChild(dummy1);
+engineplays=document.createElement('td');
+engineplays.appendChild(document.createTextNode("Engine Plays: "));
+enginetr.appendChild(engineplays);
+var whiteplay = document.createElement('td');
+whiteplay.style = 'width: 60px; border: 5px solid grey; border-radius: 5px; background-color:#B3B3B3';
+whiteplay.setAttribute('onclick', 'player(true)');
+var whitepawn=document.createElement('img');
+whitepawn.setAttribute('src', 'Pieces/whitepawn.gif');
+whitepawn.style = 'height: 25px;';
+whiteplay.appendChild(whitepawn);
+var blackplay = document.createElement('td');
+blackplay.style = 'width: 60px; border: 5px solid grey; border-radius: 5px; background-color:#B3B3B3';
+blackplay.setAttribute('onclick', 'player(false)');
+var blackpawn=document.createElement('img');
+blackpawn.setAttribute('src', 'Pieces/blackpawn.gif');
+blackpawn.style = 'height: 25px;';
+blackplay.appendChild(blackpawn);
+enginetr.appendChild(whiteplay);
+enginetr.appendChild(blackplay);
+depthtd=document.createElement('td');
+depthtd.appendChild(document.createTextNode("Search Depth: "));
+enginetr.appendChild(depthtd);
+plytd = document.createElement('td');
+plytd.style = 'border: 5px solid grey; border-radius: 5px; background-color:#F9F9F9';
+plybox = document.createElement('INPUT');
+plybox.value = 7;
+plybox.style = 'height: 25px; width: 30px; font-size: 18px; text-align: center; background-color:#F9F9F9; border-style: none;';
+plytd.appendChild(plybox);
+enginetr.appendChild(plytd);
+dummy2=document.createElement('td');
+dummy2.style = 'width: 140px;';
+enginetr.appendChild(dummy2);
+
+//Sets up and initializes the move header
+var gameheader=document.createElement('table');
+var moveheader=document.createElement('tr');
+var whosemove=document.createElement('td');
+whosemove.setAttribute('style','width:530px;');
+moveheader.setAttribute('style', 'font-size:x-large;font-weight:bold;text-align:center;margin:10px 10px;');
+var whitemove=document.createTextNode("WHITE's MOVE");
+var blackmove=document.createTextNode("BLACK's MOVE");
+whosemove.appendChild(whitemove);
+moveheader.appendChild(whosemove);
+gameheader.appendChild(moveheader);
+mainlowerbody.appendChild(gameheader);
+
+var structuraltable=document.createElement('table');
+var structuraltr=document.createElement('tr');
+var structuraltd=document.createElement('td');
+structuraltd.setAttribute('id', 'structuraltd');
+
+//The following text creates the table element and then loads it all up with initial values.
+var maintable=document.createElement('table');
+maintable.setAttribute('border', '10');
+
+//The following creates, builds up, and appends cell elements (with initial color attributes) for every cell in the board. It also creates an array of pieces, each with an onclick highlight function included, and appends them to their respective initial positions.
+var elements=new Array(11);
+
+//The top letters row starts here
+elements[0]=new Array(11);
+elements[0][0]=document.createElement('tr');
+elements[0][0].setAttribute('style', 'text-align:center');
+elements[0][1]=document.createElement('td');
+elements[0][0].appendChild(elements[0][1]);
+elements[0][2]=document.createElement('td');
+elements[0][2].appendChild(document.createTextNode("a"));
+elements[0][0].appendChild(elements[0][2]);
+elements[0][3]=document.createElement('td');
+elements[0][3].appendChild(document.createTextNode("b"));
+elements[0][0].appendChild(elements[0][3]);
+elements[0][4]=document.createElement('td');
+elements[0][4].appendChild(document.createTextNode("c"));
+elements[0][0].appendChild(elements[0][4]);
+elements[0][5]=document.createElement('td');
+elements[0][5].appendChild(document.createTextNode("d"));
+elements[0][0].appendChild(elements[0][5]);
+elements[0][6]=document.createElement('td');
+elements[0][6].appendChild(document.createTextNode("e"));
+elements[0][0].appendChild(elements[0][6]);
+elements[0][7]=document.createElement('td');
+elements[0][7].appendChild(document.createTextNode("f"));
+elements[0][0].appendChild(elements[0][7]);
+elements[0][8]=document.createElement('td');
+elements[0][8].appendChild(document.createTextNode("g"));
+elements[0][0].appendChild(elements[0][8]);
+elements[0][9]=document.createElement('td');
+elements[0][9].appendChild(document.createTextNode("h"));
+elements[0][0].appendChild(elements[0][9]);
+elements[0][10]=document.createElement('td');
+elements[0][0].appendChild(elements[0][10]);
+maintable.appendChild(elements[0][0]);
+
+//Pieces will work through independently operating image elements, which will be (at first) appended to their initial starting squares and then (later) moved around as desired.
+elements[10]=new Array(33);
+//First row image-elements comprise elements[10][1] through elements[10][8].
+//Black pawns comprise elements[10][9] through elements[10][16]
+//White pawns comprise elements[10][17] through elements[10][24]
+//Eighth row image-elements comprise elements[10][24] through elements[10][32].
+
+//Creates all image elements for will-be eighth-row Pieces/ They will not be appended until later.
+elements[10][1]=document.createElement('img');
+elements[10][1].setAttribute('src', 'Pieces/blackrook.gif');
+elements[10][1].setAttribute('onclick', 'highlight(1, false, true)');
+elements[10][2]=document.createElement('img');
+elements[10][2].setAttribute('src', 'Pieces/blackknight.gif');
+elements[10][2].setAttribute('onclick', 'highlight(2, false, true)');
+elements[10][3]=document.createElement('img');
+elements[10][3].setAttribute('src', 'Pieces/blackbishop.gif');
+elements[10][3].setAttribute('onclick', 'highlight(3, false, true)');
+elements[10][4]=document.createElement('img');
+elements[10][4].setAttribute('src', 'Pieces/blackqueen.gif');
+elements[10][4].setAttribute('onclick', 'highlight(4, false, true)');
+elements[10][5]=document.createElement('img');
+elements[10][5].setAttribute('src', 'Pieces/blackking.gif');
+elements[10][5].setAttribute('onclick', 'highlight(5, false, true)');
+elements[10][6]=document.createElement('img');
+elements[10][6].setAttribute('src', 'Pieces/blackbishop.gif');
+elements[10][6].setAttribute('onclick', 'highlight(6, false, true)');
+elements[10][7]=document.createElement('img');
+elements[10][7].setAttribute('src', 'Pieces/blackknight.gif');
+elements[10][7].setAttribute('onclick', 'highlight(7, false, true)');
+elements[10][8]=document.createElement('img');
+elements[10][8].setAttribute('src', 'Pieces/blackrook.gif');
+elements[10][8].setAttribute('onclick', 'highlight(8, false, true)');
+
+//Creates all image elements for will-be first-row pieces
+elements[10][25]=document.createElement('img');
+elements[10][25].setAttribute('src', 'Pieces/whiterook.gif');
+elements[10][25].setAttribute('onclick', 'highlight(25, true, true)');
+elements[10][26]=document.createElement('img');
+elements[10][26].setAttribute('src', 'Pieces/whiteknight.gif');
+elements[10][26].setAttribute('onclick', 'highlight(26, true, true)');
+elements[10][27]=document.createElement('img');
+elements[10][27].setAttribute('src', 'Pieces/whitebishop.gif');
+elements[10][27].setAttribute('onclick', 'highlight(27, true, true)');
+elements[10][28]=document.createElement('img');
+elements[10][28].setAttribute('src', 'Pieces/whitequeen.gif');
+elements[10][28].setAttribute('onclick', 'highlight(28, true, true)');
+elements[10][29]=document.createElement('img');
+elements[10][29].setAttribute('src', 'Pieces/whiteking.gif');
+elements[10][29].setAttribute('onclick', 'highlight(29, true, true)');
+elements[10][30]=document.createElement('img');
+elements[10][30].setAttribute('src', 'Pieces/whitebishop.gif');
+elements[10][30].setAttribute('onclick', 'highlight(30, true, true)');
+elements[10][31]=document.createElement('img');
+elements[10][31].setAttribute('src', 'Pieces/whiteknight.gif');
+elements[10][31].setAttribute('onclick', 'highlight(31, true, true)');
+elements[10][32]=document.createElement('img');
+elements[10][32].setAttribute('src', 'Pieces/whiterook.gif');
+elements[10][32].setAttribute('onclick', 'highlight(32, true, true)');
+
+for (var r=8; r>=1; r--) {
+    elements[r]=new Array(11);
+    elements[r][0]=document.createElement('tr');
+    elements[r][0].setAttribute('style', 'text-align:center');
+    elements[r][9]=document.createElement('td');
+    elements[r][9].appendChild(document.createTextNode(r));
+    elements[r][0].appendChild(elements[r][9]);
+
+    for (var c=1; c<=8; c++) {
+        //Initializes the whole board to alternating white and grey. Does not insert any Pieces/
+        if (((r+c)%2)==1) {
+                elements[r][c]=document.createElement('td');
+                elements[r][c].style = 'background-color:#F6F6F6;height:54;width:54;';
+                elements[r][0].appendChild(elements[r][c]);
+            }
+            else {
+                elements[r][c]=document.createElement('td');
+                elements[r][c].style = 'background-color:#799AA5;height:54;width:54;';
+                elements[r][0].appendChild(elements[r][c]);
+            }
+        //Appends all previously-created eighth-row image elements to their starting positions.
+        if (r==8) {
+            elements[r][c].appendChild(elements[10][c]);
+        }
+        //Creates the black pawn image elements and then appends them into the 7th row.
+        if (r==7) {
+            elements[10][c+8]=document.createElement('img');
+            elements[10][c+8].setAttribute('src', 'Pieces/blackpawn.gif');
+            elements[10][c+8].setAttribute('onclick', 'highlight('+c+'+'+8+', false, true)');
+            elements[r][c].appendChild(elements[10][c+8]);
+        }
+        //Creates the white pawn image elements and then appends them into the 2nd row.
+        if (r==2) {
+            elements[10][c+16]=document.createElement('img');
+            elements[10][c+16].setAttribute('src', 'Pieces/whitepawn.gif');
+            elements[10][c+16].setAttribute('onclick', 'highlight('+c+'+'+16+', true, true)');
+            elements[r][c].appendChild(elements[10][c+16]);
+        }
+        //Appends all previously-created first-row image elements to their starting positions.
+        if (r==1) {
+            elements[r][c].appendChild(elements[10][c+24]);
+        }
+    }
+    elements[r][10]=document.createElement('td');
+    elements[r][10].appendChild(document.createTextNode(r));
+    elements[r][0].appendChild(elements[r][10]);
+    maintable.appendChild(elements[r][0]);
+}
+
+
+//The bottom letters row starts here
+elements[9]=new Array(11);
+elements[9][0]=document.createElement('tr');
+elements[9][0].setAttribute('style', 'text-align:center');
+elements[9][1]=document.createElement('td');
+elements[9][0].appendChild(elements[9][1]);
+elements[9][2]=document.createElement('td');
+elements[9][2].appendChild(document.createTextNode("a"));
+elements[9][0].appendChild(elements[9][2]);
+elements[9][3]=document.createElement('td');
+elements[9][3].appendChild(document.createTextNode("b"));
+elements[9][0].appendChild(elements[9][3]);
+elements[9][4]=document.createElement('td');
+elements[9][4].appendChild(document.createTextNode("c"));
+elements[9][0].appendChild(elements[9][4]);
+elements[9][5]=document.createElement('td');
+elements[9][5].appendChild(document.createTextNode("d"));
+elements[9][0].appendChild(elements[9][5]);
+elements[9][6]=document.createElement('td');
+elements[9][6].appendChild(document.createTextNode("e"));
+elements[9][0].appendChild(elements[9][6]);
+elements[9][7]=document.createElement('td');
+elements[9][7].appendChild(document.createTextNode("f"));
+elements[9][0].appendChild(elements[9][7]);
+elements[9][8]=document.createElement('td');
+elements[9][8].appendChild(document.createTextNode("g"));
+elements[9][0].appendChild(elements[9][8]);
+elements[9][9]=document.createElement('td');
+elements[9][9].appendChild(document.createTextNode("h"));
+elements[9][0].appendChild(elements[9][9]);
+elements[9][10]=document.createElement('td');
+elements[9][0].appendChild(elements[9][10]);
+maintable.appendChild(elements[9][0]);
+
+//Appends the entire chessboard into the structural td.
+structuraltd.appendChild(maintable);
+
+var repository=new Array();
+repository[0]=document.createElement('tr');
+repository[0].setAttribute('id', 'repository');
+
+//Quick loop which creates and appends 10 cells to form the taken-pieces repository.
+for (var s=1; s<=10; s++) {
+    repository[s]=document.createElement('td');
+    repository[s].style = 'background-color:#AAAAAA;height:73;width:45;border:solid 2px;';
+    repository[s+10]=document.createElement('img');
+    repository[s+10].setAttribute('src','Pieces/blank.gif');
+    repository[s].appendChild(repository[s+10]);
+    repository[0].appendChild(repository[s]);
+}
+
+//The repository row is also appended into the structural td.
+structuraltd.appendChild(repository[0]);
+
+//Appends the entire structuraltd (which includes the main table as well as the taken pieces repository) to the structural tr.
+structuraltr.appendChild(structuraltd);
+
+//Creates the moves log and appends it to the structural tr. Individual entries will be appended through the separate function.
+var moveslogtd=document.createElement('td');
+moveslogtd.setAttribute('id', 'moveslogtd');
+var moveslogheader=document.createElement('div');
+moveslogheader.setAttribute('style', 'font-size:21px;font-weight:bold;text-align:center;');
+moveslogheader.appendChild(document.createTextNode("PAST MOVES"));
+moveslogtd.appendChild(moveslogheader);
+structuraltr.appendChild(moveslogtd);
+
+structuraltable.appendChild(structuraltr);
+mainlowerbody.appendChild(structuraltable);
+</script>
+</body>
+</html>
